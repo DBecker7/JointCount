@@ -1,5 +1,7 @@
 # Assessing dependence between frequency and severity through shared random effects with application to wildland fires in British Columbia, Canada
 
+Devan G. Becker, Douglas G. Woolford, and Charmaine B. Dean.
+
 Research on the occurrence and the final size of wildland fires typically models these two events as two separate processes. 
 Here, we develop and apply a compound process framework for jointly modelling the frequency and the severity of wildland fires. 
 Separate modelling structures for the frequency and the size of fires are linked through a shared random effect.  
