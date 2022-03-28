@@ -1,13 +1,6 @@
 # Setting up the models
 
-"
-Goals
-    - Fit a model to each year (with correct units)
-    - Multiple models, even. Compare the WAIC!
-        - Multiple jobs
-    - Good output format, updates on progress?
-"
-rm(list = ls())
+library(runjags)
 
 re_source <- function() source("Scripts/modelCompendium.R")
 re_source()
@@ -15,10 +8,11 @@ re_source()
 bc3 <- readRDS("Data/Modified/bc3.rds")
 precip <- readRDS("Data/Modified/regionalWeather.rds")
 
-mychains <- 2
-myiter <- 5000
-myadapt <- 2000
-myupdate <- 500
+mychains <- 3
+myiter <- 500
+myadapt <- 200
+myburnin <- 300
+myupdate <- 50
 mythin <- 20
 FireYears <- unique(bc3$FireYear)
 FireYears <- FireYears[FireYears <= 1995]
@@ -60,7 +54,7 @@ nxdf <- data.frame(data = NA, Xrmse = NA, Nrmse = NA,
     Xwaic = NA, Nwaic = NA, WAIC = NA, year = NA)
 
 
-modfilename <- paste0("~/Big Models/allyears3b_", 
+modfilename <- paste0("Big Models/allyears3b_", 
     mymodelname, mycause, "_dflist.rds")
 modfilename2 <- paste0("Data/Models/allyears3b_", 
     mymodelname, mycause, "_dflist.rds")
@@ -106,7 +100,7 @@ for(i in seq_along(FireYears)[FireYears > max(nxdf$year, na.rm = TRUE)]){
         imodelcoda <- coda.samples(imodelmodel, n.iter = myiter, 
             variable.names = imodelmonitors, thin = mythin,
             progress.bar = "text")
-        
+
         imodeldf <- melt.mcmc.list.rename(imodelcoda)
         imodeldf$year <- FireYears[i]
         
@@ -117,11 +111,11 @@ for(i in seq_along(FireYears)[FireYears > max(nxdf$year, na.rm = TRUE)]){
         imodel_NX <- extract_NX(jdf = imodeldf, jdata = imodeldata)
         imodel_NX$year <- FireYears[i]
         imodel_NX$data <- mymodelname
-        imodel_gr <- extract_gr(imodelcoda)
-        imodel_gr$year <- FireYears[i]
-        imodel_gr$coda <- mymodelname
+        #imodel_gr <- extract_gr(imodelcoda)
+        #imodel_gr$year <- FireYears[i]
+        #imodel_gr$coda <- mymodelname
         
-        grdf <- bind_rows(grdf, imodel_gr)
+        #grdf <- bind_rows(grdf, imodel_gr)
         nxdf <- bind_rows(nxdf, imodel_NX)
         
         thesetimes[i] <- difftime(Sys.time(), t1, units = "mins") %>% 
@@ -140,17 +134,17 @@ for(i in seq_along(FireYears)[FireYears > max(nxdf$year, na.rm = TRUE)]){
             -starts_with("logLik"), - starts_with("XLik"))
         
         saveRDS(allmods, file = modfilename)
-        saveRDS(grdf, file = grfilename)
+        #saveRDS(grdf, file = grfilename)
         saveRDS(nxdf, file = nxfilename)
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
 Sys.time() - t0
 
 saveRDS(allmods, file = modfilename)
-saveRDS(grdf, file = grfilename)
+#saveRDS(grdf, file = grfilename)
 saveRDS(nxdf, file = nxfilename)
 
-grdf
+#grdf
 nxdf
 
 if(FALSE){

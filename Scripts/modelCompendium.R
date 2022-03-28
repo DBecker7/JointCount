@@ -108,7 +108,7 @@ mix_data_prep <- function(fires, units = "metric",
     
     Ni <- fires %>% 
         group_by(DayYear, FireCentre2) %>% 
-        summarise(Ni = n()) %>% #, 
+        summarise(.groups = "drop", Ni = n()) %>% #, 
         #FWI = mean(FWI, na.rm = TRUE), 
         #WIND = mean(WIND, na.rm = TRUE),
         #TEMP = mean(TEMP, na.rm = TRUE),
@@ -219,7 +219,7 @@ mix_data_prep_2 <- function(fires, ncovar,
     
     Ni <- fires %>% 
         group_by(DayYear, FireCentre2) %>% 
-        summarise(Ni = n()) %>% #, 
+        summarise(.groups = "drop", Ni = n()) %>% #, 
         #FWI = mean(FWI, na.rm = TRUE), 
         #WIND = mean(WIND, na.rm = TRUE),
         #TEMP = mean(TEMP, na.rm = TRUE),
@@ -231,9 +231,9 @@ mix_data_prep_2 <- function(fires, ncovar,
         as.data.frame()
     
     ncovar <- ncovar %>%
-        select(myncov, FireCentre2, DayYear) %>%
+        select(all_of(myncov), FireCentre2, DayYear) %>%
         right_join(Ni, by = c("FireCentre2", "DayYear")) %>% 
-        select(myncov)
+        select(all_of(myncov))
     
     
     B <- bs(fire.season, knots = quantile(fire.season, 0:10/10))
@@ -330,7 +330,7 @@ get_waic <- function(jdf, jdata){
             region = jdata$jdata$FireCentre2N[iday],
             day = jdata$jdata$DayYearN[iday]) %>% 
         group_by(iter2, day) %>% 
-        summarise(lik = prod(lik)) #%>% pull(lik) %>% unique()
+        summarise(lik = prod(lik), .groups = "drop") #%>% pull(lik) %>% unique()
     
     likXij <- jdf %>% 
         select(starts_with("XLik"), iter2) %>% 
@@ -342,7 +342,7 @@ get_waic <- function(jdf, jdata){
             region = jdata$jdata$FireCentre2[jfire],
             day = jdata$jdata$DayYear[jfire]) %>% 
         group_by(iter2, day) %>% 
-        summarise(likX = prod(likX)) %>% 
+        summarise(likX = prod(likX), .groups = "drop") %>% 
         right_join(expand.grid(day = unique(likNi$day), iter2 = unique(likNi$iter2)),
             by = c("iter2", "day"))
     
