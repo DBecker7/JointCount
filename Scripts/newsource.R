@@ -10,7 +10,7 @@ theme_set(theme_bw())
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(dplyr))
 
-register_google(key = "AIzaSyCRYU6ELLearWYEpgrLPWKFz83yFgrJeSM")
+register_google(key = "") # Key has been deleted from my Google API
 
 load.module("glm")
 load.module("dic")
