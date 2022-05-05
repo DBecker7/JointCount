@@ -103,18 +103,18 @@ mix_data_prep <- function(fires, units = "metric",
     mycov = c("ISI", "FWI", "Slope", "WIND", "TEMP", "RH", "Elevation")){
     
     fire.season <<- yday("2003-04-01"):yday("2003-10-01")
-    fires <- filter(fires, DayYear %in% fire.season, !is.na(FireCentre2))
+    fires <- filter(fires, DayYear %in% fire.season, !is.na(FireCentre))
     
     
     Ni <- fires %>% 
-        group_by(DayYear, FireCentre2) %>% 
+        group_by(DayYear, FireCentre) %>% 
         summarise(.groups = "drop", Ni = n()) %>% #, 
         #FWI = mean(FWI, na.rm = TRUE), 
         #WIND = mean(WIND, na.rm = TRUE),
         #TEMP = mean(TEMP, na.rm = TRUE),
         #RH = mean(RH, na.rm = TRUE))%>% 
-        right_join(expand.grid(DayYear = 1:365, FireCentre2 = 1:6),
-            by = c("DayYear", "FireCentre2")) %>% 
+        right_join(expand.grid(DayYear = 1:365, FireCentre = 1:6),
+            by = c("DayYear", "FireCentre")) %>% 
         mutate(Ni = ifelse(is.na(Ni), 0, Ni)) %>%
         filter(DayYear %in% fire.season) %>% 
         as.data.frame()
@@ -178,8 +178,8 @@ mix_data_prep <- function(fires, units = "metric",
         #nNcovar = 4,
         DayYear = fires$DayYear - min(fire.season) + 1,
         DayYearN = Ni$DayYear - min(fire.season) + 1,
-        FireCentre2 = fires$FireCentre2,
-        FireCentre2N = Ni$FireCentre2,
+        FireCentre = fires$FireCentre,
+        FireCentreN = Ni$FireCentre,
         z = (Ni$Ni > 0)*1,
         ones = rep(1, nrow(Ni)),
         B = B, J = ncol(B),
@@ -213,26 +213,26 @@ mix_data_prep_2 <- function(fires, ncovar,
     myncov = c("meanPrecip", "meanTemp")){
     
     fire.season <<- yday("2003-04-01"):yday("2003-10-01")
-    fires <- filter(fires, DayYear %in% fire.season, !is.na(FireCentre2))
+    fires <- filter(fires, DayYear %in% fire.season, !is.na(FireCentre))
     
     ncovar <- filter(ncovar, Year == fires$FireYear[1])
     
     Ni <- fires %>% 
-        group_by(DayYear, FireCentre2) %>% 
+        group_by(DayYear, FireCentre) %>% 
         summarise(.groups = "drop", Ni = n()) %>% #, 
         #FWI = mean(FWI, na.rm = TRUE), 
         #WIND = mean(WIND, na.rm = TRUE),
         #TEMP = mean(TEMP, na.rm = TRUE),
         #RH = mean(RH, na.rm = TRUE))%>% 
-        right_join(expand.grid(DayYear = 1:365, FireCentre2 = 1:6),
-            by = c("DayYear", "FireCentre2")) %>% 
+        right_join(expand.grid(DayYear = 1:365, FireCentre = 1:6),
+            by = c("DayYear", "FireCentre")) %>% 
         mutate(Ni = ifelse(is.na(Ni), 0, Ni)) %>%
         filter(DayYear %in% fire.season) %>% 
         as.data.frame()
     
     ncovar <- ncovar %>%
-        select(all_of(myncov), FireCentre2, DayYear) %>%
-        right_join(Ni, by = c("FireCentre2", "DayYear")) %>% 
+        select(all_of(myncov), FireCentre = FireCentre2, DayYear) %>%
+        right_join(Ni, by = c("FireCentre", "DayYear")) %>% 
         select(all_of(myncov))
     
     
@@ -295,8 +295,10 @@ mix_data_prep_2 <- function(fires, ncovar,
         nNcovar = ncol(ncovar),
         DayYear = fires$DayYear - min(fire.season) + 1,
         DayYearN = Ni$DayYear - min(fire.season) + 1,
-        FireCentre2 = fires$FireCentre2,
-        FireCentre2N = Ni$FireCentre2,
+        FireCentre = fires$FireCentre,
+        FireCentreN = Ni$FireCentre,
+        FireCentres = unique(fires$FireCentre),
+        nFireCentres = length(unique(fires$FireCentre)),
         z = (Ni$Ni > 0)*1,
         ones = rep(1, nrow(Ni)),
         B = B, J = ncol(B),
@@ -327,7 +329,7 @@ get_waic <- function(jdf, jdata){
         select(-name) %>% 
         mutate(iday = as.numeric(as.character(iday)),
             lik = exp(logLik),
-            region = jdata$jdata$FireCentre2N[iday],
+            region = jdata$jdata$FireCentreN[iday],
             day = jdata$jdata$DayYearN[iday]) %>% 
         group_by(iter2, day) %>% 
         summarise(lik = prod(lik), .groups = "drop") #%>% pull(lik) %>% unique()
@@ -339,7 +341,7 @@ get_waic <- function(jdf, jdata){
         select(-name) %>% 
         mutate(jfire = as.numeric(as.character(jfire)),
             likX = exp(logLik),
-            region = jdata$jdata$FireCentre2[jfire],
+            region = jdata$jdata$FireCentre[jfire],
             day = jdata$jdata$DayYear[jfire]) %>% 
         group_by(iter2, day) %>% 
         summarise(likX = prod(likX), .groups = "drop") %>% 
@@ -366,7 +368,7 @@ get_waic_2 <- function(jdf, jdata){
         select(-name) %>% 
         mutate(iday = as.numeric(as.character(iday)),
             lik = Lik,
-            region = jdata$jdata$FireCentre2N[iday],
+            region = jdata$jdata$FireCentreN[iday],
             day = jdata$jdata$DayYearN[iday]) %>% head()
         group_by(iter2, day) %>% 
         summarise(lik = prod(lik)) #%>% pull(lik) %>% unique()
@@ -378,7 +380,7 @@ get_waic_2 <- function(jdf, jdata){
         select(-name) %>% 
         mutate(jfire = as.numeric(as.character(jfire)),
             likX = Lik,
-            region = jdata$jdata$FireCentre2[jfire],
+            region = jdata$jdata$FireCentre[jfire],
             day = jdata$jdata$DayYear[jfire]) %>% 
         group_by(iter2, day) %>% 
         summarise(likX = prod(likX)) %>% 
@@ -528,24 +530,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -560,7 +562,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -569,13 +571,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -641,24 +643,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -673,7 +675,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -682,13 +684,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -755,24 +757,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -793,7 +795,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -802,13 +804,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -872,24 +874,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -912,7 +914,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -921,13 +923,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -995,24 +997,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1027,7 +1029,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -1036,13 +1038,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -1061,7 +1063,7 @@ model{
     # The trick: p is the actual likelihood, we don't care about bernoulli!
     C <- 1000000
     for(d in 1:ndays){
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			b[r, d] ~ dnorm(0, taub)
 		}
         
@@ -1109,24 +1111,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
-            b[FireCentre2N[i], DayYearN[i]] #+ inprod(ncovars, betan)
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
+            b[FireCentreN[i], DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[FireCentre2[j], DayYear[j]]
+                gammai[FireCentre[j]] * b[FireCentre[j], DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1141,7 +1143,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -1150,13 +1152,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -1220,24 +1222,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1265,13 +1267,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -1333,24 +1335,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1378,13 +1380,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] <- 0 #~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] <- 0 #~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -1456,29 +1458,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1493,7 +1495,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -1502,13 +1504,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -1574,29 +1576,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1612,7 +1614,7 @@ model{
     pind ~ dbeta(2,8)
     for(p in 1:nxcovar){
 		bind[p] ~ dbern(pind)
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betaxT[p, r] ~ dnorm(0, 1/4)
             betax[p, r] <- bind[p]*betaxT[p, r]
         }
@@ -1622,13 +1624,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -1693,29 +1695,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1730,7 +1732,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -1739,13 +1741,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -1811,29 +1813,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1854,7 +1856,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -1863,13 +1865,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -1935,29 +1937,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -1980,7 +1982,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -1989,13 +1991,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -2065,29 +2067,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2102,7 +2104,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -2111,13 +2113,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -2136,7 +2138,7 @@ model{
     # The trick: p is the actual likelihood, we don't care about bernoulli!
     C <- 1000000
     for(d in 1:ndays){
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			b[r, d] ~ dnorm(0, taub)
 		}
         
@@ -2184,29 +2186,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
-            b[FireCentre2N[i], DayYearN[i]] #+ inprod(ncovars, betan)
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
+            b[FireCentreN[i], DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[FireCentre2[j], DayYear[j]]
+                gammai[FireCentre[j]] * b[FireCentre[j], DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2221,7 +2223,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -2230,13 +2232,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -2300,29 +2302,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2343,7 +2345,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -2352,13 +2354,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -2424,29 +2426,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2474,13 +2476,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -2548,29 +2550,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2598,13 +2600,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] <- 0#~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] <- 0#~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -2671,29 +2673,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2722,15 +2724,15 @@ model{
     #}
     
 	gind ~ dbeta(1,1)
-    for(r in 1:6){
-		gzero[r] ~ dbern(gind)
-        gammai_1[r] ~ dnorm(0, 1/5)
-		gammai[r] <- gzero[r]*gammai_1[r]
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+		gzero[FireCentres[r]] ~ dbern(gind)
+        gammai_1[FireCentres[r]] ~ dnorm(0, 1/5)
+		gammai[FireCentres[r]] <- gzero[FireCentres[r]]*gammai_1[FireCentres[r]]
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -2759,7 +2761,7 @@ model{
         # Dispersion Spline
         alpha_spline[d] <- exp(inprod(B[d,], abeta[]))
         # Dispersion Spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			gamma_spline[r, d] <- inprod(B[d,], gambeta[r,1:14])
 		}
     }
@@ -2800,29 +2802,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gamma_spline[FireCentre2[j], DayYear[j]] * b[DayYear[j]]
+                gamma_spline[FireCentre[j], DayYear[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2850,14 +2852,14 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        #gammai[r] ~ dnorm(hypgamma, 1/5)
+    for(r in 1:nFireCentres){
+        #gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
 		gambeta[r, 1:14] ~ dmnorm(zero_vec, lambeta_posdef)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -2882,7 +2884,7 @@ model{
         # Seasonal Affect
         lambda_spline[d] <- inprod(B[d,], lambeta[])
         # Presence spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             pi_spline[r,d] <- inprod(B[d,], pibeta[r,1:J])
 		}
         # Dispersion Spline
@@ -2899,7 +2901,7 @@ model{
             z[i]*(log(w[i]) + LogTruncNB[i])
         
         # For Hurdle
-        logit(w[i]) <- pi_spline[FireCentre2N[i], DayYearN[i]]
+        logit(w[i]) <- pi_spline[FireCentreN[i], DayYearN[i]]
         
         # Truncated Poisson Distribution
         #logTPois[i] <- log(w[i]) + Ni[i]*log(mu[i]) -
@@ -2925,29 +2927,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -2956,7 +2958,7 @@ model{
     
     # Splines
     lambeta ~ dmnorm(zero_vec, lambeta_posdef)
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         pibeta[r,1:J] ~ dmnorm(zero_vec, lambeta_posdef)
 	}
     abeta ~ dmnorm(zero_vec, lambeta_posdef)
@@ -2977,13 +2979,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -3057,29 +3059,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3108,15 +3110,15 @@ model{
     #}
     
 	gind ~ dbeta(1,1)
-    for(r in 1:6){
-		gzero[r] ~ dbern(gind)
-        gammai_1[r] ~ ", gammai_prior, "
-		gammai[r] <- gzero[r]*gammai_1[r]
-        mux[r] ~ ", mux_prior, "
-        lambda[r] ~ ", lambdar_prior, "
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ ", sigmax_prior,"
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+		gzero[FireCentres[r]] ~ dbern(gind)
+        gammai_1[FireCentres[r]] ~ ", gammai_prior, "
+		gammai[FireCentres[r]] <- gzero[FireCentres[r]]*gammai_1[FireCentres[r]]
+        mux[FireCentres[r]] ~ ", mux_prior, "
+        lambda[FireCentres[r]] ~ ", lambdar_prior, "
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ ", sigmax_prior,"
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
     }
 }
 ")}
@@ -3182,29 +3184,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3233,15 +3235,15 @@ model{
     #}
     
 	gind ~ dbeta(1,1)
-    for(r in 1:6){
-		gzero[r] ~ dbern(gind)
-        gammai_1[r] ~ dnorm(hypgam, 1/5)
-		gammai[r] <- gzero[r]*gammai_1[r]
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplam, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ ", sigmax_prior,"
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+		gzero[FireCentres[r]] ~ dbern(gind)
+        gammai_1[FireCentres[r]] ~ dnorm(hypgam, 1/5)
+		gammai[FireCentres[r]] <- gzero[FireCentres[r]]*gammai_1[FireCentres[r]]
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplam, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ ", sigmax_prior,"
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
     }
 	
 	hypgam ~ ", hypgam_prior,"
@@ -3312,29 +3314,29 @@ model{
 		ENi[i] <- mu[i]/(1 + exp(-mu[i]))
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] #+ inprod(ncovars, betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3349,7 +3351,7 @@ model{
 
     
     for(p in 1:nxcovar){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betax[p, r] ~ dnorm(0, 1/4)
         }
     }
@@ -3358,13 +3360,13 @@ model{
     #    betan[p] ~ dnorm(0, 1/4)
     #}
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(0, 1/5)
-        mux[r] ~ dnorm(0, 1/5)
-        lambda[r] ~ dnorm(0, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(0, 1/5)
+        mux[FireCentres[r]] ~ dnorm(0, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(0, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 }
@@ -3426,29 +3428,29 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         # px is probabilty of wider regime (digit preference rather than rounding)
-        px[j] ~ dbern(roundprob[FireCentre2[j]])
+        px[j] ~ dbern(roundprob[FireCentre[j]])
         ind[j, 1] <- dint[j, 2*px[j] + 1]
         ind[j, 2] <- dint[j, 2*px[j] + 2]
             
         Xijr1[j] ~ dinterval(Xijr_star[j], ind[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(ind[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(ind[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(ind[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3476,13 +3478,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -3505,7 +3507,7 @@ model{
         # Seasonal Affect
         lambda_spline[d] <- inprod(B[d,], lambeta[])
         # Presence spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             pi_spline[r,d] <- inprod(B[d,], pibeta[r,1:J])
 		}
         # Dispersion Spline
@@ -3522,7 +3524,7 @@ model{
             z[i]*(log(w[i]) + LogTruncNB[i])
         
         # For Hurdle
-        logit(w[i]) <- pi_spline[FireCentre2N[i], DayYearN[i]]
+        logit(w[i]) <- pi_spline[FireCentreN[i], DayYearN[i]]
         
         # Truncated Poisson Distribution
         #logTPois[i] <- log(w[i]) + Ni[i]*log(mu[i]) -
@@ -3548,24 +3550,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3574,7 +3576,7 @@ model{
     
     # Splines
     lambeta ~ dmnorm(zero_vec, lambeta_posdef)
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         pibeta[r,1:J] ~ dmnorm(zero_vec, lambeta_posdef)
 	}
     abeta ~ dmnorm(zero_vec, lambeta_posdef)
@@ -3595,13 +3597,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -3623,7 +3625,7 @@ model{
         # Seasonal Affect
         lambda_spline[d] <- inprod(B[d,], lambeta[])
         # Presence spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             pi_spline[r,d] <- inprod(B[d,], pibeta[r,1:J])
 		}
         # Dispersion Spline
@@ -3640,7 +3642,7 @@ model{
             z[i]*(log(w[i]) + LogTruncNB[i])
         
         # For Hurdle
-        logit(w[i]) <- pi_spline[FireCentre2N[i], DayYearN[i]]
+        logit(w[i]) <- pi_spline[FireCentreN[i], DayYearN[i]]
         
         # Truncated Poisson Distribution
         #logTPois[i] <- log(w[i]) + Ni[i]*log(mu[i]) -
@@ -3666,24 +3668,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3692,7 +3694,7 @@ model{
     
     # Splines
     lambeta ~ dmnorm(zero_vec, lambeta_posdef)
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         pibeta[r,1:J] ~ dmnorm(zero_vec, lambeta_posdef)
 	}
     abeta ~ dmnorm(zero_vec, lambeta_posdef)
@@ -3713,13 +3715,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] <- 0 #~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] <- 0 #~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	#hypgamma ~ dnorm(0, 1/5)
@@ -3783,24 +3785,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3828,13 +3830,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -3860,7 +3862,7 @@ model{
         # Dispersion Spline
         alpha_spline[d] <- exp(inprod(B[d,], abeta[]))
         # Dispersion Spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			gamma_spline[r, d] <- inprod(B[d,], gambeta[r,1:14])
 		}
     }
@@ -3901,24 +3903,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gamma_spline[FireCentre2[j], DayYear[j]] * b[DayYear[j]]
+                gamma_spline[FireCentre[j], DayYear[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -3946,14 +3948,14 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        #gammai[r] ~ dnorm(hypgamma, 1/5)
+    for(r in 1:nFireCentres){
+        #gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
 		gambeta[r, 1:14] ~ dmnorm(zero_vec, lambeta_posdef)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4016,24 +4018,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4054,7 +4056,7 @@ model{
 
     
     for(p in 1:nxcovar){
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			betax[r, p] ~ dnorm(0, 1/4)
 		}
     }
@@ -4063,13 +4065,13 @@ model{
 		betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4094,7 +4096,7 @@ model{
         # Presence spline
         pi_spline[d] <- inprod(B[d,], pibeta[])
         # Dispersion Spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             alpha_spline[r,d] <- 1# inprod(B[d,], abeta[r,1:J])
 		}
     }
@@ -4117,42 +4119,42 @@ model{
             
         # https://www.cambridge.org/core/services/aop-cambridge-core/content/view/C1FFB63EC7657CD424CE6726F32BC4FE/9781316459515c7_p184-214_CBO.pdf/glms_part_iii_zeroinflated_and_hurdle_models.pdf
         # https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Zero-Inflated_Negative_Binomial_Regression.pdf
-        LogTruncNB[i] <-  (1/alpha_spline[FireCentre2N[i], DayYearN[i]])*log(u[i])+
+        LogTruncNB[i] <-  (1/alpha_spline[FireCentreN[i], DayYearN[i]])*log(u[i])+
             Ni[i]*log(1 - u[i]) + 
-            loggam(Ni[i] + 1/alpha_spline[FireCentre2N[i], DayYearN[i]]) -
-            loggam(1/alpha_spline[FireCentre2N[i], DayYearN[i]]) - 
+            loggam(Ni[i] + 1/alpha_spline[FireCentreN[i], DayYearN[i]]) -
+            loggam(1/alpha_spline[FireCentreN[i], DayYearN[i]]) - 
             loggam(Ni[i] + 1) -
-            log(1 - (1 + alpha_spline[FireCentre2N[i], DayYearN[i]]*mu[i])^(-1/alpha_spline[FireCentre2N[i], DayYearN[i]]))
-         u[i] <- 1/(1 + alpha_spline[FireCentre2N[i], DayYearN[i]]*mu[i])
+            log(1 - (1 + alpha_spline[FireCentreN[i], DayYearN[i]]*mu[i])^(-1/alpha_spline[FireCentreN[i], DayYearN[i]]))
+         u[i] <- 1/(1 + alpha_spline[FireCentreN[i], DayYearN[i]]*mu[i])
          
         #https://data.princeton.edu/wws509/notes/countmoments
-        ETrunc1[i] <- 1 + alpha_spline[FireCentre2N[i], DayYearN[i]]*mu[i]
-        ETrunc2[i] <- -1/alpha_spline[FireCentre2N[i], DayYearN[i]]
+        ETrunc1[i] <- 1 + alpha_spline[FireCentreN[i], DayYearN[i]]*mu[i]
+        ETrunc2[i] <- -1/alpha_spline[FireCentreN[i], DayYearN[i]]
         ETrunc3[i] <- ETrunc1[i]^ETrunc2[i]
         ETruncNB[i] <- mu[i]/(1 - ETrunc3[i])
         #ExTruncNB[i] <- mu[i]/((1-(1 + 
-        #    alpha_spline[FireCentre2N[i], DayYearN[i]]*mu[i]))^(-1/alpha_spline[FireCentre2N[i], DayYearN[i]]))
+        #    alpha_spline[FireCentreN[i], DayYearN[i]]*mu[i]))^(-1/alpha_spline[FireCentreN[i], DayYearN[i]]))
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4162,7 +4164,7 @@ model{
     # Splines
     lambeta ~ dmnorm(zero_vec, lambeta_posdef)
     pibeta ~ dmnorm(zero_vec, lambeta_posdef)
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         abeta[r,1:J] ~ dmnorm(zero_vec, lambeta_posdef)
 	}
     
@@ -4182,13 +4184,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4251,24 +4253,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
-            b[FireCentre2N[i], DayYearN[i]] + inprod(ncovars[i,], betan)
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
+            b[FireCentreN[i], DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[FireCentre2[j], DayYear[j]]
+                gammai[FireCentre[j]] * b[FireCentre[j], DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4282,7 +4284,7 @@ model{
     
     # AR(1) structure for random effects
     for(i in 1:ndays){
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             b[r, i] ~ dnorm(0, taub)
         }
     }
@@ -4296,13 +4298,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4366,24 +4368,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4411,13 +4413,13 @@ model{
         betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4440,7 +4442,7 @@ model{
         # Seasonal Affect
         lambda_spline[d] <- inprod(B[d,], lambeta[])
         # Presence spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             pi_spline[r,d] <- inprod(B[d,], pibeta[r,1:J])
 		}
         # Dispersion Spline
@@ -4457,7 +4459,7 @@ model{
             z[i]*(log(w[i]) + LogTruncNB[i])
         
         # For Hurdle
-        logit(w[i]) <- pi_spline[FireCentre2N[i], DayYearN[i]]
+        logit(w[i]) <- pi_spline[FireCentreN[i], DayYearN[i]]
         
         # Truncated Poisson Distribution
         #logTPois[i] <- log(w[i]) + Ni[i]*log(mu[i]) -
@@ -4483,24 +4485,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[FireCentre2[j],])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[FireCentre[j],])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4509,7 +4511,7 @@ model{
     
     # Splines
     lambeta ~ dmnorm(zero_vec, lambeta_posdef)
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         pibeta[r,1:J] ~ dmnorm(zero_vec, lambeta_posdef)
 	}
     abeta ~ dmnorm(zero_vec, lambeta_posdef)
@@ -4529,19 +4531,19 @@ model{
     pind ~ dbeta(2,8)
     for(p in 1:nxcovar){
 		bind[p] ~ dbern(pind)
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betaxT[p, r] ~ dnorm(0, 1/4)
             betax[p, r] <- bind[p]*betaxT[p, r]
         }
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4563,7 +4565,7 @@ model{
         # Seasonal Affect
         lambda_spline[d] <- inprod(B[d,], lambeta[])
         # Presence spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             pi_spline[r,d] <- inprod(B[d,], pibeta[r,1:J])
 		}
         # Dispersion Spline
@@ -4580,7 +4582,7 @@ model{
             z[i]*(log(w[i]) + LogTruncNB[i])
         
         # For Hurdle
-        logit(w[i]) <- pi_spline[FireCentre2N[i], DayYearN[i]]
+        logit(w[i]) <- pi_spline[FireCentreN[i], DayYearN[i]]
         
         # Truncated Poisson Distribution
         #logTPois[i] <- log(w[i]) + Ni[i]*log(mu[i]) -
@@ -4606,24 +4608,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[FireCentre2[j],])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[FireCentre[j],])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4632,7 +4634,7 @@ model{
     
     # Splines
     lambeta ~ dmnorm(zero_vec, lambeta_posdef)
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         pibeta[r,1:J] ~ dmnorm(zero_vec, lambeta_posdef)
 	}
     abeta ~ dmnorm(zero_vec, lambeta_posdef)
@@ -4654,14 +4656,14 @@ model{
     }
     
 	gind ~ dbeta(2,8)
-    for(r in 1:6){
-        gammaiT[r] ~ dnorm(hypgamma, 1/5)
-		gammai[r] <- gind*gammaiT[r]
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammaiT[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+		gammai[FireCentres[r]] <- gind*gammaiT[FireCentres[r]]
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4725,24 +4727,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
         lp1[j] <- inprod(xcovars[j,], betax)
-        lp2[j] <- mux[FireCentre2[j]] + 
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4771,14 +4773,14 @@ model{
     }
     
 	gind ~ dbeta(2,8)
-    for(r in 1:6){
-        gammaiT[r] ~ dnorm(hypgamma, 1/5)
-		gammai[r] <- gind*gammaiT[r]
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammaiT[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+		gammai[FireCentres[r]] <- gind*gammaiT[FireCentres[r]]
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4843,24 +4845,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -4882,7 +4884,7 @@ model{
     
 	pind ~ dbeta(2,8)
     for(p in 1:nxcovar){
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			bind[r, p] ~ dbern(pind)
 			betaxT[r, p] ~ dnorm(0, 1/4)
 			betax[r, p] <- betaxT[r, p]*bind[r,p]
@@ -4893,13 +4895,13 @@ model{
 		betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -4964,24 +4966,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre2[j]])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[, FireCentre[j]])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -5014,7 +5016,7 @@ model{
 
     
     for(p in 1:nxcovar){
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
 			betax[r, p] ~ dnorm(0, 1/4)
 		}
     }
@@ -5023,13 +5025,13 @@ model{
 		betan[p] ~ dnorm(0, 1/4)
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)
@@ -5050,7 +5052,7 @@ model{
         # Seasonal Affect
         lambda_spline[d] <- inprod(B[d,], lambeta[1:J])
         # Presence spline
-		for(r in 1:6){
+		for(r in 1:nFireCentres){
             pi_spline[r,d] <- inprod(B[d,], pibeta[r,1:J])
 		}
         # Dispersion Spline
@@ -5067,7 +5069,7 @@ model{
             z[i]*(log(w[i]) + LogTruncNB[i])
         
         # For Hurdle
-        logit(w[i]) <- pi_spline[FireCentre2N[i], DayYearN[i]]
+        logit(w[i]) <- pi_spline[FireCentreN[i], DayYearN[i]]
         
         # Truncated Poisson Distribution
         #logTPois[i] <- log(w[i]) + Ni[i]*log(mu[i]) -
@@ -5093,24 +5095,24 @@ model{
         ENi[i] <- w[i]*ETruncNB[i]
         
         # mu is the mean of the Poisson
-        # lambda[r] is region-specific intercept
-        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentre2N[i]] + 
+        # lambda[FireCentres[r]] is region-specific intercept
+        log(mu[i]) <- lambda_spline[DayYearN[i]] + lambda[FireCentreN[i]] + 
             b[DayYearN[i]] + inprod(ncovars[i,], betan)
     }
     
     
     for(j in 1:jfires){
-        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre2[j]])
-        lp1[j] <- inprod(xcovars[j,], betax[FireCentre2[j],])
-        lp2[j] <- mux[FireCentre2[j]] + 
+        Xijr_star[j] ~ dlnorm(lp2[j], taux[FireCentre[j]])
+        lp1[j] <- inprod(xcovars[j,], betax[FireCentre[j],])
+        lp2[j] <- mux[FireCentre[j]] + 
                 lp1[j] + 
-                gammai[FireCentre2[j]] * b[DayYear[j]]
+                gammai[FireCentre[j]] * b[DayYear[j]]
         
         Xijr1[j] ~ dinterval(Xijr_star[j], dint[j,])
         
-        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre2[j]]))
-        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre2[j]]) -
-            plnorm(dint[j, 1], lp2[j], taux[FireCentre2[j]]))
+        EXi[j] <- exp(lp2[j] + 1/(2*taux[FireCentre[j]]))
+        XLik[j] <- log(plnorm(dint[j, 2], lp2[j], taux[FireCentre[j]]) -
+            plnorm(dint[j, 1], lp2[j], taux[FireCentre[j]]))
     }
     
     # Priors
@@ -5124,7 +5126,7 @@ model{
     u3[1] ~ dnorm(0,1/10)
     lambeta[1] <- u1[1]
     abeta[1] <- u3[1]
-    for(r in 1:6){
+    for(r in 1:nFireCentres){
         u2[r,1] ~ dnorm(0,1/10)
         pibeta[r,1] <- u2[r,1]
     }
@@ -5134,7 +5136,7 @@ model{
         u3[j] ~ dnorm(0, 1/10)
         abeta[j] <- abeta[j-1] + u3[j]
         
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             u2[r, j] ~ dnorm(0, 1/10)
             pibeta[r, j] <- pibeta[r, j-1] + u2[r, j]
         }
@@ -5155,19 +5157,19 @@ model{
     pind ~ dbeta(2,8)
     for(p in 1:nxcovar){
 		bind[p] ~ dbern(pind)
-        for(r in 1:6){
+        for(r in 1:nFireCentres){
             betaxT[p, r] ~ dnorm(0, 1/4)
             betax[p, r] <- bind[p]*betaxT[p, r]
         }
     }
     
-    for(r in 1:6){
-        gammai[r] ~ dnorm(hypgamma, 1/5)
-        mux[r] ~ dnorm(hypmux, 1/5)
-        lambda[r] ~ dnorm(hyplambda, 1/5)
-        taux[r] <- pow(sigma_x[r], -2)
-        sigma_x[r] ~ dgamma(8, 2)
-        #roundprob[r] ~ dbeta(2,2)
+    for(r in 1:nFireCentres){
+        gammai[FireCentres[r]] ~ dnorm(hypgamma, 1/5)
+        mux[FireCentres[r]] ~ dnorm(hypmux, 1/5)
+        lambda[FireCentres[r]] ~ dnorm(hyplambda, 1/5)
+        taux[FireCentres[r]] <- pow(sigma_x[FireCentres[r]], -2)
+        sigma_x[FireCentres[r]] ~ dgamma(8, 2)
+        #roundprob[FireCentres[r]] ~ dbeta(2,2)
         
     }
 	hypgamma ~ dnorm(0, 1/5)

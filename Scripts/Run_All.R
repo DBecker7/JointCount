@@ -5,7 +5,8 @@ library(runjags)
 re_source <- function() source("Scripts/modelCompendium.R")
 re_source()
 
-bc3 <- readRDS("Data/Modified/bc3.rds")
+bc3 <- readRDS("Data/Modified/bc3.rds") %>%
+    mutate(FireCentre = FireCentre - 1)
 precip <- readRDS("Data/Modified/regionalWeather.rds")
 
 mychains <- 3
@@ -17,8 +18,14 @@ mythin <- 20
 FireYears <- unique(bc3$FireYear)
 FireYears <- FireYears[FireYears <= 1995]
 #myyear <- 1990
-mycause <- "LTG"
-mymodelnumber <- 21
+args <- commandArgs(trailingOnly = TRUE)
+if(length(args) == 0) { 
+    mycause <- "LTG"
+    mymodelnumber <- 21
+} else {
+    mycause <- args[1]
+    mymodelnumber <- args[2]
+}
 mymodelname <- c("mix_jags_AR1pbeta", "mix_jags_AR1pbeta_sep", #2
     "wide_jags_AR1pbeta", "wide_jags_AR1pbeta_sep", #4
     "mix_jags_AR1", "mix_jags_AR2", #6
