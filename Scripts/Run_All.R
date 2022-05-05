@@ -24,7 +24,7 @@ if(length(args) == 0) {
     mymodelnumber <- 21
 } else {
     mycause <- args[1]
-    mymodelnumber <- args[2]
+    mymodelnumber <- as.numeric(args[2])
 }
 mymodelname <- c("mix_jags_AR1pbeta", "mix_jags_AR1pbeta_sep", #2
     "wide_jags_AR1pbeta", "wide_jags_AR1pbeta_sep", #4
@@ -61,7 +61,7 @@ nxdf <- data.frame(data = NA, Xrmse = NA, Nrmse = NA,
     Xwaic = NA, Nwaic = NA, WAIC = NA, year = NA)
 
 
-modfilename <- paste0("Big Models/allyears3b_", 
+modfilename <- paste0("Big_Models/allyears3b_", 
     mymodelname, mycause, "_dflist.rds")
 modfilename2 <- paste0("Data/Models/allyears3b_", 
     mymodelname, mycause, "_dflist.rds")
@@ -82,68 +82,70 @@ t0 <- Sys.time()
 thesetimes <- c()
 
 for(i in seq_along(FireYears)[FireYears > max(nxdf$year, na.rm = TRUE)]){
-    tryCatch({
-        t1 <- Sys.time()
-        
-        imodeldata <- mix_data_prep_2(ncovar = precip, 
-            units = ifelse(FireYears[i] > 1975, 
-                "metric", "imperial"), 
-            fires = dplyr::filter(bc3, FireYear == FireYears[i], 
-                Cause == mycause,
-                ISI >= 0, FWI >= 0, Slope > -80, 
-                WIND >= 0, TEMP > -50, RH >= 0), 
-            mycov = c("ISI", "FWI", "Slope", "WIND", "TEMP", "RH"))
-        
-        if(substr(mymodelname, 1, 3) == "rou") {
-            imodeldata$jdata$dint <- imodeldata$jdata$dint[, 1:2]
-        } else if(substr(mymodelname, 1, 3) == "wid") {
-            imodeldata$jdata$dint <- imodeldata$jdata$dint[, 3:4]
-        }
-        
-        imodelmodel <- jags.model(file = textConnection(mymodel), 
-            data = imodeldata$jdata, inits = imodeldata$idata, 
-            n.chains = mychains, n.adapt = myadapt, quiet = TRUE)
-        update(imodelmodel, myupdate, progress.bar = "none")
-        imodelcoda <- coda.samples(imodelmodel, n.iter = myiter, 
-            variable.names = imodelmonitors, thin = mythin,
-            progress.bar = "text")
+    if(length(modlist[[i]]) == 0) {
+        tryCatch({
+            t1 <- Sys.time()
+            
+            imodeldata <- mix_data_prep_2(ncovar = precip, 
+                units = ifelse(FireYears[i] > 1975, 
+                    "metric", "imperial"), 
+                fires = dplyr::filter(bc3, FireYear == FireYears[i], 
+                    Cause == mycause,
+                    ISI >= 0, FWI >= 0, Slope > -80, 
+                    WIND >= 0, TEMP > -50, RH >= 0), 
+                mycov = c("ISI", "FWI", "Slope", "WIND", "TEMP", "RH"))
+            
+            if(substr(mymodelname, 1, 3) == "rou") {
+                imodeldata$jdata$dint <- imodeldata$jdata$dint[, 1:2]
+            } else if(substr(mymodelname, 1, 3) == "wid") {
+                imodeldata$jdata$dint <- imodeldata$jdata$dint[, 3:4]
+            }
+            
+            imodelmodel <- jags.model(file = textConnection(mymodel), 
+                data = imodeldata$jdata, inits = imodeldata$idata, 
+                n.chains = mychains, n.adapt = myadapt, quiet = TRUE)
+            update(imodelmodel, myupdate, progress.bar = "none")
+            imodelcoda <- coda.samples(imodelmodel, n.iter = myiter, 
+                variable.names = imodelmonitors, thin = mythin,
+                progress.bar = "text")
 
-        imodeldf <- melt.mcmc.list.rename(imodelcoda)
-        imodeldf$year <- FireYears[i]
-        
-        modlist[[i]] <- imodeldf %>% select(-starts_with("ENi"), 
-            -starts_with("EXi"),
-            -starts_with("logLik"), - starts_with("XLik"))
-        
-        imodel_NX <- extract_NX(jdf = imodeldf, jdata = imodeldata)
-        imodel_NX$year <- FireYears[i]
-        imodel_NX$data <- mymodelname
-        #imodel_gr <- extract_gr(imodelcoda)
-        #imodel_gr$year <- FireYears[i]
-        #imodel_gr$coda <- mymodelname
-        
-        #grdf <- bind_rows(grdf, imodel_gr)
-        nxdf <- bind_rows(nxdf, imodel_NX)
-        
-        thesetimes[i] <- difftime(Sys.time(), t1, units = "mins") %>% 
-            round(3)
-        meantime <- mean(thesetimes, na.rm = TRUE) %>% round(3)
-        estleft <- round(meantime*(length(FireYears) - i), 3)
-        
-        print(paste0(FireYears[i], " (loop ", i, " of ", 
-            length(FireYears), ") took ", 
-            thesetimes[i], " mins. Approx ",
-            estleft, " mins remaining."))
-        
-        
-        allmods <- bind_rows(modlist) %>% select(-starts_with("ENi"), 
-            -starts_with("EXi"),
-            -starts_with("logLik"), - starts_with("XLik"))
-        
-        saveRDS(allmods, file = modfilename)
-        #saveRDS(grdf, file = grfilename)
-        saveRDS(nxdf, file = nxfilename)
-    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+            imodeldf <- melt.mcmc.list.rename(imodelcoda)
+            imodeldf$year <- FireYears[i]
+            
+            modlist[[i]] <- imodeldf %>% select(-starts_with("ENi"), 
+                -starts_with("EXi"),
+                -starts_with("logLik"), - starts_with("XLik"))
+            
+            imodel_NX <- extract_NX(jdf = imodeldf, jdata = imodeldata)
+            imodel_NX$year <- FireYears[i]
+            imodel_NX$data <- mymodelname
+            #imodel_gr <- extract_gr(imodelcoda)
+            #imodel_gr$year <- FireYears[i]
+            #imodel_gr$coda <- mymodelname
+            
+            #grdf <- bind_rows(grdf, imodel_gr)
+            nxdf <- bind_rows(nxdf, imodel_NX)
+            
+            thesetimes[i] <- difftime(Sys.time(), t1, units = "mins") %>% 
+                round(3)
+            meantime <- mean(thesetimes, na.rm = TRUE) %>% round(3)
+            estleft <- round(meantime*(length(FireYears) - i), 3)
+            
+            print(paste0(FireYears[i], " (loop ", i, " of ", 
+                length(FireYears), ") took ", 
+                thesetimes[i], " mins. Approx ",
+                estleft, " mins remaining."))
+            
+            
+            allmods <- bind_rows(modlist) %>% select(-starts_with("ENi"), 
+                -starts_with("EXi"),
+                -starts_with("logLik"), - starts_with("XLik"))
+            
+            saveRDS(allmods, file = modfilename)
+            #saveRDS(grdf, file = grfilename)
+            saveRDS(nxdf, file = nxfilename)
+        }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    }
 }
 Sys.time() - t0
 
