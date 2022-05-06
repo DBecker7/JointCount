@@ -1,2 +1,8 @@
 Data/*
 Paper/*
+!Paper/Figures/*
+!Paper/*tex
+!Paper/*bib
+!Paper/*bst
+!Paper/JointCount*
+Big_Models/*
