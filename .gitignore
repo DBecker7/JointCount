@@ -6,3 +6,7 @@ Paper/*
 !Paper/*bst
 !Paper/JointCount*
 Big_Models/*
+Big Models/*
+!Big Models/placeholder
+Big_Models/*
+!Big_Models/placeholder
