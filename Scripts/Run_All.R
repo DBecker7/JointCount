@@ -9,12 +9,12 @@ bc3 <- readRDS("Data/Modified/bc3.rds") %>%
     mutate(FireCentre = FireCentre - 1)
 precip <- readRDS("Data/Modified/regionalWeather.rds")
 
-mychains <- 3
-myiter <- 500
-myadapt <- 200
-myburnin <- 300
+mychains <- 2
+myiter <- 5000
+myadapt <- 1000
+myburnin <- 1000
 myupdate <- 50
-mythin <- 20
+mythin <- 10
 FireYears <- unique(bc3$FireYear)
 FireYears <- FireYears[FireYears <= 1995]
 #myyear <- 1990
