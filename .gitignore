@@ -1,10 +1,11 @@
 Data/*
 Paper/*
-!Paper/Figures/*
+!Paper/Figures*
 !Paper/*tex
 !Paper/*bib
 !Paper/*bst
 !Paper/JointCount*
+!Paper/Joint_Count_Files*
 Big_Models/*
 Big Models/*
 !Big Models/placeholder
