@@ -11,3 +11,10 @@ Big Models/*
 !Big Models/placeholder
 Big_Models/*
 !Big_Models/placeholder
+
+# LaTeX Things
+*aux
+*log
+*out
+*pdf
+*synctex.gz
