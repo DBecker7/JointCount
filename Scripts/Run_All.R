@@ -10,11 +10,11 @@ bc3 <- readRDS("Data/Modified/bc3.rds") %>%
 precip <- readRDS("Data/Modified/regionalWeather.rds")
 
 mychains <- 2
-myiter <- 5000
-myadapt <- 1000
+myiter <- 3000
+myadapt <- 500
 myburnin <- 1000
 myupdate <- 50
-mythin <- 10
+mythin <- 5
 FireYears <- unique(bc3$FireYear)
 FireYears <- FireYears[FireYears <= 1995]
 #myyear <- 1990
@@ -65,18 +65,12 @@ nxdf <- data.frame(data = NA, Xrmse = NA, Nrmse = NA,
 
 modfilename <- paste0("Big_Models/allyears3b_", 
     mymodelname, mycause, "_dflist.rds")
-modfilename2 <- paste0("Data/Models/allyears3b_", 
-    mymodelname, mycause, "_dflist.rds")
+#modfilename2 <- paste0("Data/Models/allyears3b_", 
+#    mymodelname, mycause, "_dflist.rds")
 #grfilename <- paste0("Data/Models/allyears3b_", 
 #    mymodelname, mycause, "_gr.rds")
 nxfilename <- paste0("Data/Models/allyears3b_", 
     mymodelname, mycause, "_nx.rds")
-if(nxfilename %in% 
-        list.files("Data/Models")){
-    modlist <- list(readRDS(modfilename2))
-    #grdf <- readRDS(grfilename)
-    nxdf <- readRDS(nxfilename)
-}
 
 
 t0 <- Sys.time()
@@ -88,13 +82,13 @@ if(!direction) loops <- rev(loops)
 
 for(i in loops){
     # Reload mod list (other processes may be working backwards)
-    if(paste0("allyears3_", mymodelname, mycause, "_nx.rds") %in% 
-            list.files("Data/Models")){
+    if(file.exists(modfilename)){
         modlist <- list(readRDS(modfilename))
         #grdf <- readRDS(grfilename)
         nxdf <- readRDS(nxfilename)
     }
-    if(length(modlist[[i]]) == 0) {
+    proceed <- tryCatch(length(modlist[[i]]) == 0, error = function(e) TRUE)
+    if(proceed) {
         tryCatch({
             t1 <- Sys.time()
             
