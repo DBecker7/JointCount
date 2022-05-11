@@ -22,9 +22,11 @@ args <- commandArgs(trailingOnly = TRUE)
 if(length(args) == 0) { 
     mycause <- "LTG"
     mymodelnumber <- 21
+    direction <- 1
 } else {
     mycause <- args[1]
     mymodelnumber <- as.numeric(args[2])
+    direction <- as.numeric(args[3])
 }
 mymodelname <- c("mix_jags_AR1pbeta", "mix_jags_AR1pbeta_sep", #2
     "wide_jags_AR1pbeta", "wide_jags_AR1pbeta_sep", #4
@@ -65,23 +67,33 @@ modfilename <- paste0("Big_Models/allyears3b_",
     mymodelname, mycause, "_dflist.rds")
 modfilename2 <- paste0("Data/Models/allyears3b_", 
     mymodelname, mycause, "_dflist.rds")
-grfilename <- paste0("Data/Models/allyears3b_", 
-    mymodelname, mycause, "_gr.rds")
+#grfilename <- paste0("Data/Models/allyears3b_", 
+#    mymodelname, mycause, "_gr.rds")
 nxfilename <- paste0("Data/Models/allyears3b_", 
     mymodelname, mycause, "_nx.rds")
-
-if(paste0("allyears3_", mymodelname, mycause, "_nx.rds") %in% 
+if(nxfilename %in% 
         list.files("Data/Models")){
     modlist <- list(readRDS(modfilename2))
-    grdf <- readRDS(grfilename)
+    #grdf <- readRDS(grfilename)
     nxdf <- readRDS(nxfilename)
 }
+
 
 t0 <- Sys.time()
 
 thesetimes <- c()
 
-for(i in seq_along(FireYears)[FireYears > max(nxdf$year, na.rm = TRUE)]){
+loops <- seq_along(FireYears)[FireYears > max(nxdf$year, na.rm = TRUE)]
+if(!direction) loops <- rev(loops)
+
+for(i in loops){
+    # Reload mod list (other processes may be working backwards)
+    if(paste0("allyears3_", mymodelname, mycause, "_nx.rds") %in% 
+            list.files("Data/Models")){
+        modlist <- list(readRDS(modfilename))
+        #grdf <- readRDS(grfilename)
+        nxdf <- readRDS(nxfilename)
+    }
     if(length(modlist[[i]]) == 0) {
         tryCatch({
             t1 <- Sys.time()
