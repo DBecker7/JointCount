@@ -159,34 +159,28 @@ dev.off()
 
 
 # Fig3 -------------------------------------------------------------------------
-tiff(filename = "Paper 2/Figures/Fig3.tif", width = 5.2, height = 3, units = "in", res = 600)
+tiff(filename = "Paper/Figures/Fig3.tif", width = 5.2, height = 3, units = "in", res = 600)
 
 #```{r gammaltg, fig.cap="\\label{gammaltg}Posterior median estimates and 90% Credible Intervals for the linking parameter in the model for lightning-caused fires. There are very few years where the credible interval was entirely above 0, but many where it was below. This indicates that the size and count of lightning-caused fires tends to have a negative association. Days with fewer fires had larger fires, and days with more fires had smaller fires."}
-load("Data/Models/ltgperbest2.rdata")
+ltgest <- readRDS("Big_Models/allyears3b_wide_jags_AR1rbeta_NiCov2LTG_dflist.rds")
 ltgest %>% 
-    select(year, starts_with("gammai")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "Region", "fun")) %>% 
-    spread(key = fun, value = val) %>%
-    mutate(sig = ifelse(qlo > 0, "Strictly Positive", 
-        ifelse(qhi < 0, "Strictly Negative", "Neither"))) %>% 
-    mutate(sig = ordered(sig, 
-        levels = c("Strictly Negative", "Neither", "Strictly Positive"))) %>%
-    ggplot(aes(x = as.numeric(year), y = median, colour = sig)) + 
-    geom_errorbar(mapping = aes(ymin = qlo, ymax = qhi),size = 0.4) +
-    geom_point(size = 0.4) + #geom_smooth(method = "loess", se = FALSE) + 
-    facet_wrap(~Region, nrow = 2, 
-        labeller = labeller(Region = label_both)) +
+    select(starts_with("gammai"), year) %>% 
+    gather(name, gamma, -year) %>% 
+    separate(name, sep = "\\_", into = c("name", "region")) %>% 
+    select(-name) %>% 
+    mutate(region = as.numeric(as.character(region))) %>% 
+    group_by(region, year) %>% 
+    summarise(lo = quantile(gamma, 0.055), med = median(gamma), 
+        hi = quantile(gamma, 0.945)) %>% 
+    mutate(sig = ifelse(lo > 0, "positive", 
+        ifelse(hi < 0, "negative", "neutral"))) %>% 
+    ggplot(aes(x = year, colour = sig)) + 
+    geom_errorbar(aes(ymin = lo, ymax = hi)) + 
+    geom_point(aes(y = med)) +
+    facet_wrap(~ region) +
+    geom_hline(aes(yintercept = 0)) +
     theme_bw() +
-    labs(x = "Year", y = bquote(gamma[r]), 
-        title = "Linking Parameter - Lightning Caused Fires",
-        colour = '90% Credible Interval') +
-    geom_hline(aes(yintercept = 0), colour = rgb(1,0,0,0.3)) +
-    scale_colour_manual(values = c("firebrick3",1,"green4")) +
-    theme(legend.position = "bottom", 
-        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-    scale_x_continuous(breaks = seq(1950,2015,10)) +
-    fivepointtwo()
+    scale_colour_manual(values = c("red", "black", "green"))
 
 dev.off()
 
@@ -197,35 +191,30 @@ dev.off()
 
 
 # Fig4 -------------------------------------------------------------------------
-tiff(filename = "Paper 2/Figures/Fig4.tif", width = 5.2, height = 3, units = "in", res = 600)
+tiff(filename = "Paper/Figures/Fig4.tif", width = 5.2, height = 3, units = "in", res = 600)
 
 #```{r gammaper, fig.cap="\\label{gammaper}Posterior median estimates and 90\\% Credible Intervals for the linking parameter in the model for person-caused fires. In contrast to lightning-caused fires, person-caused fires tend to have positive association."}
 
+perest <- readRDS("Big_Models/allyears3b_wide_jags_AR1pbeta_NiCov_regpi_varsel2PER_dflist.rds")
 # gamma
 perest %>% 
-    select(year, starts_with("gammai")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "Region", "fun")) %>% 
-    spread(key = fun, value = val) %>%
-    mutate(sig = ifelse(qlo > 0, "Strictly Positive", 
-        ifelse(qhi < 0, "Strictly Negative", "Neither"))) %>% 
-    mutate(sig = ordered(sig, 
-        levels = c("Strictly Negative", "Neither", "Strictly Positive"))) %>%
-    ggplot(aes(x = as.numeric(year), y = median, colour = sig)) + 
-    geom_errorbar(mapping = aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) + #geom_smooth(method = "loess", se = FALSE) + 
-    facet_wrap(~Region, nrow = 2, 
-        labeller = labeller(Region = label_both)) +
+    select(starts_with("gammai"), year) %>% 
+    gather(name, gamma, -year) %>% 
+    separate(name, sep = "\\_", into = c("name", "region")) %>% 
+    select(-name) %>% 
+    mutate(region = as.numeric(as.character(region))) %>% 
+    group_by(region, year) %>% 
+    summarise(lo = quantile(gamma, 0.055), med = median(gamma), 
+        hi = quantile(gamma, 0.945)) %>% 
+    mutate(sig = ifelse(lo > 0, "positive", 
+        ifelse(hi < 0, "negative", "neutral"))) %>% 
+    ggplot(aes(x = year, colour = sig)) + 
+    geom_errorbar(aes(ymin = lo, ymax = hi)) + 
+    geom_point(aes(y = med)) +
+    facet_wrap(~ region) +
+    geom_hline(aes(yintercept = 0)) +
     theme_bw() +
-    labs(x = "year", y = bquote(gamma[r]), 
-        title = "Linking Parameter - Human Caused Fires",
-        colour = '"Significance"') +
-    geom_hline(aes(yintercept = 0), colour = rgb(1,0,0,0.3)) +
-    scale_colour_manual(values = c("firebrick3",1,"green4")) +
-    theme(legend.position = "bottom", 
-        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-    scale_x_continuous(breaks = seq(1950,2015,10)) +
-    fivepointtwo()
+    scale_colour_manual(values = c("red", "black", "green"))
 dev.off()
 
 
