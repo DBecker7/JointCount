@@ -1,12 +1,14 @@
 # Figures for Assessing Dependence Between Frequency and Severity Through Shared Random Effects
 
-setwd("..") # assuming it starts in "Paper 2" directory
-source("Scripts/modelCompendium.R")
+library(here)
+source(here("Scripts", "modelCompendium.R"))
 
-bc3 <- readRDS("Data/Modified/bc3.rds")
+bc3 <- readRDS(here("Data/Modified", "bc3.rds"))
 
 library(ggmap)
 library(cowplot)
+library(tidyr)
+library(stringr)
 
 theme_set(theme_bw())
 
@@ -28,7 +30,6 @@ fivepointtwo <- function() list(
 
 # Fig1 -------------------------------------------------------------------------
 
-tiff(filename = "Paper 2/Figures/Fig1.tif", width = 5.2, height = 3, units = "in", res = 600)
 mids_df <- bcfort %>% 
     mutate(id = as.numeric(id) + 1) %>%
     group_by(id) %>% 
@@ -79,8 +80,14 @@ freqsev <- plot_grid(
     ncol = 1
 )  
 
-plot_grid(mymap1, freqsev, nrow = 1, rel_widths = c(1,1.75))
+gg_1 <- plot_grid(freqsev, nrow = 1, rel_widths = c(1,1.75))
 
+tiff(filename = "Paper/Figures/Fig1.tif", width = 5.2, height = 3, units = "in", res = 600)
+freqsev
+dev.off()
+
+pdf(file = "Paper/Joint_Count_Files/firezones-1.pdf", width = 5.2, height = 3)
+freqsev + theme_bw()
 dev.off()
 
 
@@ -92,7 +99,7 @@ dev.off()
 
 # Fig2 -------------------------------------------------------------------------
 #```{r rounding, fig.height = 2.5, fig.cap="\\label{rounding}Evidence of rounding and unit change. Prior to 1985, 75\\% of all fires were recorded as being exactly 0.1ha. The decrease in proportion coincides with the advent of fires recorded as 0ha. In 1975, Canada switched to the metric system. This means that fires were approximated as being 0.5ha rather tham 0.4ha (1 acre). Note that the proportion of 0.1ha fires did not change since 1/10th of a hectare and 1/4th of an acre are both coarsening values."}
-tiff(filename = "Paper 2/Figures/Fig2.tif", width = 5.2, height = 2, units = "in", res = 600)
+tiff(filename = "Paper/Figures/Fig2.tif", width = 5.2, height = 2, units = "in", res = 600)
 sml <- bc3 %>% mutate(Size = FinalControlSize) %>%
     filter(Size <= 2, Year < 1996)#, Size > 0)
 
@@ -159,11 +166,9 @@ dev.off()
 
 
 # Fig3 -------------------------------------------------------------------------
-tiff(filename = "Paper/Figures/Fig3.tif", width = 5.2, height = 3, units = "in", res = 600)
-
 #```{r gammaltg, fig.cap="\\label{gammaltg}Posterior median estimates and 90% Credible Intervals for the linking parameter in the model for lightning-caused fires. There are very few years where the credible interval was entirely above 0, but many where it was below. This indicates that the size and count of lightning-caused fires tends to have a negative association. Days with fewer fires had larger fires, and days with more fires had smaller fires."}
 ltgest <- readRDS("Big_Models/allyears3b_wide_jags_AR1rbeta_NiCov2LTG_dflist.rds")
-ltgest %>% 
+gg_ltg <- ltgest %>% 
     select(starts_with("gammai"), year) %>% 
     gather(name, gamma, -year) %>% 
     separate(name, sep = "\\_", into = c("name", "region")) %>% 
@@ -179,9 +184,19 @@ ltgest %>%
     geom_point(aes(y = med)) +
     facet_wrap(~ region) +
     geom_hline(aes(yintercept = 0)) +
+    fivepointtwo() +
     theme_bw() +
-    scale_colour_manual(values = c("red", "black", "green"))
+    scale_colour_manual(values = c("red", "black", "green")) +
+    scale_x_continuous(breaks = seq(1950, 2000, 5), minor_breaks = 1950:2000) +
+    theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+    labs(y = expression(gamma[r]), x = "Year")
+tiff(filename = "Paper/Figures/Fig3.tif", width = 5.2, height = 3, units = "in", res = 600)
+gg_ltg
+dev.off()
 
+pdf(file = "Paper/Figures/gammaltg.pdf", width = 5.2, height = 3)
+gg_ltg
 dev.off()
 
 
@@ -191,13 +206,9 @@ dev.off()
 
 
 # Fig4 -------------------------------------------------------------------------
-tiff(filename = "Paper/Figures/Fig4.tif", width = 5.2, height = 3, units = "in", res = 600)
-
 #```{r gammaper, fig.cap="\\label{gammaper}Posterior median estimates and 90\\% Credible Intervals for the linking parameter in the model for person-caused fires. In contrast to lightning-caused fires, person-caused fires tend to have positive association."}
-
 perest <- readRDS("Big_Models/allyears3b_wide_jags_AR1pbeta_NiCov_regpi_varsel2PER_dflist.rds")
-# gamma
-perest %>% 
+gg_per <- perest %>% 
     select(starts_with("gammai"), year) %>% 
     gather(name, gamma, -year) %>% 
     separate(name, sep = "\\_", into = c("name", "region")) %>% 
@@ -213,8 +224,19 @@ perest %>%
     geom_point(aes(y = med)) +
     facet_wrap(~ region) +
     geom_hline(aes(yintercept = 0)) +
+    fivepointtwo() +
     theme_bw() +
-    scale_colour_manual(values = c("red", "black", "green"))
+    scale_colour_manual(values = c("red", "black", "green")) +
+    scale_x_continuous(breaks = seq(1950, 2000, 5), minor_breaks = 1950:2000) +
+    theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+    labs(y = expression(gamma[r]), x = "Year")
+tiff(filename = "Paper/Figures/Fig4.tif", width = 5.2, height = 3, units = "in", res = 600)
+gg_per
+dev.off()
+
+pdf(file = "Paper/Figures/gammaper.pdf", width = 5.2, height = 3)
+gg_per
 dev.off()
 
 
@@ -223,61 +245,68 @@ dev.off()
 
 
 # Fig5 -------------------------------------------------------------------------
-tiff(filename = "Paper 2/Figures/Fig5.tif", width = 5.2, height = 2.5, units = "in", res = 600)
 #```{r hypers, fig.height=4.5, fig.width=11, fig.cap="\\label{hypers}Hyperparameters for the mean of the size and count. By the construction of the model, the regional parameters are deviations from these values, with the hyperparameters representing the mean over all regions. All of these parameters are on the log scale."}
-hypmu_ltg <- ltgest %>% select(starts_with("hypmu"), year) %>% 
-    #select(ends_with("median"), year) %>% 
-    gather(region, gamma, -year) %>% 
-    separate(region, sep = "\\_", into = c("name", "fun")) %>% 
-    spread(fun, gamma) %>% 
+hypmu_ltg <- ltgest %>% select(hypmux, year) %>% 
+    group_by(year) %>%
+    summarise(median = median(hypmux), 
+        qlo = quantile(hypmux, 0.025),
+        qhi = quantile(hypmux, 0.975)) %>% 
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
-    geom_point(size = 0.4) + #geom_line() +
-    labs(x = "Year", y = "Hyperparameter", 
-        title = "Hyperparameter for mean fire size - Lightning") +
-    fivepointtwo()
-hyplam_ltg <- ltgest %>% select(starts_with("hyplam"), year) %>% 
-    gather(region, gamma, -year) %>% 
-    separate(region, sep = "\\_", into = c("name", "fun")) %>% 
-    spread(fun, gamma) %>% 
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
+        geom_point(size = 0.4) + #geom_line() +
+        labs(x = "Year", y = "Hyperparameter", 
+            title = "Hyperparameter for mean fire size - Lightning") +
+        fivepointtwo()
+hyplam_ltg <- ltgest %>% select(hyplambda, year) %>% 
+    group_by(year) %>%
+    summarise(median = median(hyplambda), 
+        qlo = quantile(hyplambda, 0.025),
+        qhi = quantile(hyplambda, 0.975)) %>% 
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
-    geom_point(size = 0.4) + #geom_line() +
-    labs(x = "Year", y = "Hyperparameter", 
-        title = "Hyperparameter mean fire count - Lightning") +
-    fivepointtwo()
-hypmu_per <- perest %>% select(starts_with("hypmu"), year) %>% 
-    gather(region, gamma, -year) %>% 
-    separate(region, sep = "\\_", into = c("name", "fun")) %>%
-    spread(fun, gamma) %>%  
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
+        geom_point(size = 0.4) + #geom_line() +
+        labs(x = "Year", y = "Hyperparameter", 
+            title = "Hyperparameter mean fire count - Lightning") +
+        fivepointtwo()
+hypmu_per <- perest %>% select(hypmux, year) %>% 
+    group_by(year) %>%
+    summarise(median = median(hypmux), 
+        qlo = quantile(hypmux, 0.025),
+        qhi = quantile(hypmux, 0.975)) %>% 
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
-    geom_point(size = 0.4) + #geom_line() +
-    labs(x = "Year", y = "Hyperparameter", 
-        title = "Hyperparameter for mean fire size - Human") +
-    fivepointtwo()
-hyplam_per <- perest %>% select(starts_with("hyplam"), year) %>% 
-    gather(region, gamma, -year) %>% 
-    separate(region, sep = "\\_", into = c("name", "fun")) %>% 
-    spread(fun, gamma) %>% 
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
+        geom_point(size = 0.4) + #geom_line() +
+        labs(x = "Year", y = "Hyperparameter", 
+            title = "Hyperparameter for mean fire size - Human") +
+        fivepointtwo()
+hyplam_per <- perest %>% select(hyplambda, year) %>% 
+    group_by(year) %>%
+    summarise(median = median(hyplambda), 
+        qlo = quantile(hyplambda, 0.025),
+        qhi = quantile(hyplambda, 0.975)) %>% 
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
-    geom_point(size = 0.4) +# geom_line() +
-    labs(x = "Year", y = "Hyperparameter", 
-        title = "Hyperparameter for mean fire count - Human") +
-    fivepointtwo()
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) + 
+        geom_point(size = 0.4) +# geom_line() +
+        labs(x = "Year", y = "Hyperparameter", 
+            title = "Hyperparameter for mean fire count - Human") +
+        fivepointtwo()
 
+tiff(filename = "Paper/Figures/Fig5.tif", width = 5.2, height = 2.5, units = "in", res = 600)
 plot_grid(hypmu_ltg, hyplam_ltg, hypmu_per, hyplam_per, nrow = 2)
+dev.off()
 
+pdf(file = "Paper/Joint_Count_Files/hypers-1.pdf", width = 5.2, height = 2.5)
+plot_grid(hypmu_ltg, hyplam_ltg, hypmu_per, hyplam_per, nrow = 2)
 dev.off()
 
 
 # Fig6 -------------------------------------------------------------------------
-tiff(filename = "Paper 2/Figures/Fig6.tif", width = 5.2, height = 2.5, units = "in", res = 600)
 #```{r spatialcor, fig.height = 4.25, fig.cap="\\label{spatialcor}Correlation of the estimated linking parameter across space and time. The linking parameter in one year does not appear to predict the linking parameter in the next year. The linking parameter for lightning-caused fires is correlated for regions 1 and 2 (which are both interior from the coast and with similar forest cover) and regions 4 and 5 (which have no clear similarities). There is province-wide correlation among the linking parameters for person-caused fires."}
 
-gamper <- perest %>% select(starts_with("gammai")) %>% 
-    select(ends_with("median"))
+gamper <- perest %>% select(starts_with("gammai"), year) %>% 
+    group_by(year) %>%
+    summarise_all(.fun = median) %>%
+    select(-year)
 names(gamper) <- paste0("gamma_", 1:6)
 gammalabs <- c(bquote(hat(gamma)[1]), bquote(hat(gamma)[2]), bquote(hat(gamma)[3]),
     bquote(hat(gamma)[4]), bquote(hat(gamma)[5]), bquote(hat(gamma)[6]))
@@ -289,8 +318,10 @@ gammadf <- data.frame(x = 1:6, y = 1:6, labs = as.character(gammalabs))
 gpergg <- gpergg + geom_text(aes(x = x, y = x, label = labs), data = gammadf, parse = TRUE)
 
 
-lamper <- ltgest %>% select(starts_with("gammai")) %>% 
-    select(ends_with("median"))
+lamper <- ltgest %>% select(starts_with("gammai"), year) %>% 
+    group_by(year) %>%
+    summarise_all(.fun = median) %>%
+    select(-year)
 names(lamper) <- paste0("gamma_", 1:6)
 gammalabs <- c(bquote(hat(gamma)[1]), bquote(hat(gamma)[2]), bquote(hat(gamma)[3]),
     bquote(hat(gamma)[4]), bquote(hat(gamma)[5]), bquote(hat(gamma)[6]))
@@ -329,8 +360,15 @@ peracf <- lapply(1:6,function(x) {
     geom_hline(yintercept = -1.96/sqrt(nrow(lamper)), 
         linetype = "dashed", colour = "blue") +
     scale_x_continuous(breaks = seq(0, 40, 5), minor_breaks = seq(0,40,1)) +
-    labs(title = bquote("Autocorrelations for "~hat(gamma)[r]*" (Human)"))
+    labs(title = bquote("Autocorrelations for "~hat(gamma)[r]*" (Person)"))
 
+tiff(filename = "Paper/Figures/Fig6.tif", width = 5.2, height = 2.5, units = "in", res = 600)
+plot_grid(ltgacf + fivepointtwo(), gltggg + fivepointtwo(), 
+    peracf + fivepointtwo(), gpergg + fivepointtwo(), 
+    nrow = 2, rel_widths = c(3, 1))
+dev.off()
+
+pdf(file = "Paper/Joint_Count_Files/spatialcor-1.pdf", width = 5.2, height = 2.5)
 plot_grid(ltgacf + fivepointtwo(), gltggg + fivepointtwo(), 
     peracf + fivepointtwo(), gpergg + fivepointtwo(), 
     nrow = 2, rel_widths = c(3, 1))
@@ -341,53 +379,62 @@ dev.off()
 
 
 # Fig7 -------------------------------------------------------------------------
-tiff(filename = "Paper 2/Figures/Fig7.tif", width = 5.2, height = 2.5, units = "in", res = 600)
 #```{r sigestl, fig.cap="\\label{sigestl}The variance parameters for lightning-caused fires. there is no apparent trend over time, except perhaps a slight decrease in region 5 and in the random effect variance, with an increase in the AR(1) parameter. The AR(1) parameter is constrained to be in the interval [-1,1]."}
 # gamma
 gg1 <- ltgest %>% 
     select(year, starts_with("sigma_x")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "name2", "Region", "fun")) %>% 
-    spread(key = fun, value = val) %>% 
+    group_by(year) %>%
+    summarise_all(.funs = quantile, prob = c(0.025, 0.5, 0.975)) %>%
+    mutate(fun = c("qlo", "median", "qhi")) %>%
+    tidyr::pivot_longer(cols = 2:7, names_to = "Region") %>%
+    mutate(Region = gsub("sigma_x_", "", Region)) %>%
+    tidyr::pivot_wider(names_from = "fun", values_from = value) %>% 
     ggplot(aes(x = as.numeric(year), y = median)) + 
-    geom_errorbar(mapping = aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) + #geom_smooth(method = "loess", se = FALSE) + 
-    facet_wrap(~Region, nrow = 2, 
-        labeller = labeller(Region = label_both)) +
-    theme_bw() +
-    labs(x = "year", y = bquote(gamma[r]), 
-        title = "LogNormal Variance - Human Caused Fires",
-        colour = '"Significance"') +
-    geom_hline(aes(yintercept = 0), colour = rgb(0,0,0,0)) +
-    theme(legend.position = "none", 
-        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-    scale_x_continuous(breaks = seq(1950,2015,10)) +
-    fivepointtwo()
+        geom_errorbar(mapping = aes(ymin = qlo, ymax = qhi), size = 0.4) +
+        geom_point(size = 0.4) + #geom_smooth(method = "loess", se = FALSE) + 
+        facet_wrap(~Region, nrow = 2, 
+            labeller = labeller(Region = label_both)) +
+        theme_bw() +
+        labs(x = "year", y = bquote(gamma[r]), 
+            title = "LogNormal Variance - Lightning Caused Fires",
+            colour = '"Significance"') +
+        geom_hline(aes(yintercept = 0), colour = rgb(0,0,0,0)) +
+        theme(legend.position = "none", 
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+        scale_x_continuous(breaks = seq(1950,2015,10)) +
+        fivepointtwo()
 
 gg2 <- ltgest %>% 
-    select(year, starts_with("sigma_b")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "name2", "fun")) %>%
-    spread(key = fun, value = val) %>% 
+    select(year, sigma_b) %>%
+    group_by(year) %>%
+    summarise(qlo = quantile(sigma_b, 0.025),
+        median = median(sigma_b),
+        qhi = quantile(sigma_b, 0.975)) %>%
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) +
-    labs(x = "Year", y = bquote(sigma[b]), title = "R.E. Variance") +
-    fivepointtwo()
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
+        geom_point(size = 0.4) +
+        labs(x = "Year", y = bquote(sigma[b]), title = "R.E. Variance") +
+        fivepointtwo()
 
 gg3 <- ltgest %>% 
-    select(year, starts_with("phi")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "fun")) %>%
-    spread(key = fun, value = val) %>% 
+    select(year, phi) %>%
+    group_by(year) %>%
+    summarise(qlo = quantile(phi, 0.025),
+        median = median(phi),
+        qhi = quantile(phi, 0.975)) %>%
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) +
-    labs(x = "Year", y = bquote(phi), title = "R.E. AR(1)") +
-    fivepointtwo()
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
+        geom_point(size = 0.4) +
+        labs(x = "Year", y = bquote(phi), title = "R.E. AR(1)") +
+        fivepointtwo()
 
 gg23 <- plot_grid(gg2, gg3, ncol = 1)
 
+tiff(filename = "Paper/Figures/Fig7.tif", width = 5.2, height = 2.5, units = "in", res = 600)
+plot_grid(gg1, gg23, nrow = 1, rel_widths = c(3,1))
+dev.off()
+
+pdf(file = "Paper/Joint_Count_Files/sigestl-1.pdf", width = 5.2, height = 2.5)
 plot_grid(gg1, gg23, nrow = 1, rel_widths = c(3,1))
 dev.off()
 
@@ -400,55 +447,66 @@ dev.off()
 
 
 # Fig8 -------------------------------------------------------------------------
-tiff(filename = "Paper 2/Figures/Fig8.tif", width = 5.2, height = 2.5, units = "in", res = 600)
 #```{r sigestp, fig.cap="\\label{sigestp}Variance parameters for person-caused fires. Again, there is a slight decrease in the estimates for region 5 and $\\sigma_b$ with an increase in the AR(1) parameter."}
 # gamma
 gg1 <- perest %>% 
     select(year, starts_with("sigma_x")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "name2", "Region", "fun")) %>% 
-    spread(key = fun, value = val) %>% 
+    group_by(year) %>%
+    summarise_all(.funs = quantile, prob = c(0.025, 0.5, 0.975)) %>%
+    mutate(fun = c("qlo", "median", "qhi")) %>%
+    tidyr::pivot_longer(cols = 2:7, names_to = "Region") %>%
+    mutate(Region = gsub("sigma_x_", "", Region)) %>%
+    tidyr::pivot_wider(names_from = "fun", values_from = value) %>% 
     ggplot(aes(x = as.numeric(year), y = median)) + 
-    geom_errorbar(mapping = aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) + #geom_smooth(method = "loess", se = FALSE) + 
-    facet_wrap(~Region, nrow = 2, 
-        labeller = labeller(Region = label_both)) +
-    theme_bw() +
-    labs(x = "year", y = bquote(gamma[r]), 
-        title = "LogNormal Variance - Human Caused Fires",
-        colour = '"Significance"') +
-    geom_hline(aes(yintercept = 0), colour = rgb(0,0,0,0)) +
-    theme(legend.position = "none", 
-        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
-    scale_x_continuous(breaks = seq(1950,2015,10)) +
-    fivepointtwo()
+        geom_errorbar(mapping = aes(ymin = qlo, ymax = qhi), size = 0.4) +
+        geom_point(size = 0.4) + #geom_smooth(method = "loess", se = FALSE) + 
+        facet_wrap(~Region, nrow = 2, 
+            labeller = labeller(Region = label_both)) +
+        theme_bw() +
+        labs(x = "year", y = bquote(gamma[r]), 
+            title = "LogNormal Variance - Person Caused Fires",
+            colour = '"Significance"') +
+        geom_hline(aes(yintercept = 0), colour = rgb(0,0,0,0)) +
+        theme(legend.position = "none", 
+            axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+        scale_x_continuous(breaks = seq(1950,2015,10)) +
+        fivepointtwo()
 
 gg2 <- perest %>% 
-    select(year, starts_with("sigma_b")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "name2", "fun")) %>%
-    spread(key = fun, value = val) %>% 
+    select(year, sigma_b) %>%
+    group_by(year) %>%
+    summarise(qlo = quantile(sigma_b, 0.025),
+        median = median(sigma_b),
+        qhi = quantile(sigma_b, 0.975)) %>%
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) +
-    labs(x = "Year", y = bquote(sigma[b]), title = "R.E. Variance") +
-    fivepointtwo()
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
+        geom_point(size = 0.4) +
+        labs(x = "Year", y = bquote(sigma[b]), title = "R.E. Variance") +
+        fivepointtwo()
 
 gg3 <- perest %>% 
-    select(year, starts_with("phi")) %>%
-    gather(fun, val, -year) %>% 
-    separate(col = fun, sep = "_", into = c("name", "fun")) %>%
-    spread(key = fun, value = val) %>% 
+    select(year, phi) %>%
+    group_by(year) %>%
+    summarise(qlo = quantile(phi, 0.025),
+        median = median(phi),
+        qhi = quantile(phi, 0.975)) %>%
     ggplot(aes(x = year, y = median)) + 
-    geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
-    geom_point(size = 0.4) +
-    labs(x = "Year", y = bquote(phi), title = "R.E. AR(1)") +
-    fivepointtwo()
+        geom_errorbar(aes(ymin = qlo, ymax = qhi), size = 0.4) +
+        geom_point(size = 0.4) +
+        labs(x = "Year", y = bquote(phi), title = "R.E. AR(1)") +
+        fivepointtwo()
 
 gg23 <- plot_grid(gg2, gg3, ncol = 1)
 
+tiff(filename = "Paper/Figures/Fig8.tif", width = 5.2, height = 2.5, units = "in", res = 600)
 plot_grid(gg1, gg23, nrow = 1, rel_widths = c(3,1))
 dev.off()
+
+pdf(file = "Paper/Joint_Count_Files/sigestp-1.pdf", width = 5.2, height = 2.5)
+plot_grid(gg1, gg23, nrow = 1, rel_widths = c(3,1))
+dev.off()
+
+
 
 
 
@@ -493,7 +551,7 @@ tencols <- c('#a6cee3','#1f78b4','#b2df8a',
 
 
 
-tiff(filename = "Paper 2/Figures/Fig9-1.tif", width = 5.2, height = 3.5, units = "in", res = 600)
+tiff(filename = "Paper/Figures/Fig9-1.tif", width = 5.2, height = 3.5, units = "in", res = 600)
 pow %>% 
     filter((!is.na(CI)) | (!is.na(NB))) %>% 
     filter(ndays > 50) %>% 
@@ -547,7 +605,7 @@ pow %>%
 
 dev.off()
 
-tiff(filename = "Paper 2/Figures/Fig9-2.tif", width = 5.2, height = 3.5, units = "in", res = 600)
+tiff(filename = "Paper/Figures/Fig9-2.tif", width = 5.2, height = 3.5, units = "in", res = 600)
 pow %>% 
     filter((!is.na(CI)) | (!is.na(NB))) %>% 
     filter(ndays > 50) %>% 
@@ -600,7 +658,7 @@ pow %>%
     fivepointtwo()
 dev.off()
 
-tiff(filename = "Paper 2/Figures/Fig9-3.tif", width = 5.2, height = 3.5, units = "in", res = 600)
+tiff(filename = "Paper/Figures/Fig9-3.tif", width = 5.2, height = 3.5, units = "in", res = 600)
 pow %>% 
     filter((!is.na(CI)) | (!is.na(NB))) %>% 
     filter(ndays > 50) %>% 
