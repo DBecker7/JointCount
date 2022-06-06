@@ -12,7 +12,7 @@ library(stringr)
 
 theme_set(theme_bw())
 
-bcmap <- readRDS("WRAEES Presentation/bcmap.rds")
+bcmap <- readRDS(here("Data/Modified", "WRAEES Presentation/bcmap.rds"))
 bcmap2 <- readRDS("WRAEES Presentation/bcmap2.rds")
 bcfort <- readRDS("WRAEES Presentation/bcfort.rds")
 
@@ -83,7 +83,7 @@ freqsev <- plot_grid(
 gg_1 <- plot_grid(freqsev, nrow = 1, rel_widths = c(1,1.75))
 
 tiff(filename = "Paper/Figures/Fig1.tif", width = 5.2, height = 3, units = "in", res = 600)
-freqsev
+freqsev + theme_bw()
 dev.off()
 
 pdf(file = "Paper/Joint_Count_Files/firezones-1.pdf", width = 5.2, height = 3)
@@ -99,7 +99,6 @@ dev.off()
 
 # Fig2 -------------------------------------------------------------------------
 #```{r rounding, fig.height = 2.5, fig.cap="\\label{rounding}Evidence of rounding and unit change. Prior to 1985, 75\\% of all fires were recorded as being exactly 0.1ha. The decrease in proportion coincides with the advent of fires recorded as 0ha. In 1975, Canada switched to the metric system. This means that fires were approximated as being 0.5ha rather tham 0.4ha (1 acre). Note that the proportion of 0.1ha fires did not change since 1/10th of a hectare and 1/4th of an acre are both coarsening values."}
-tiff(filename = "Paper/Figures/Fig2.tif", width = 5.2, height = 2, units = "in", res = 600)
 sml <- bc3 %>% mutate(Size = FinalControlSize) %>%
     filter(Size <= 2, Year < 1996)#, Size > 0)
 
@@ -125,6 +124,7 @@ AllDigs <-  sapply(names(bigsmall1), function(x){
 #        geom_smooth(se = FALSE) +
 #        coord_cartesian(ylim = c(0,0.3))
 
+tiff(filename = "Paper/Figures/Fig2.tif", width = 5.2, height = 2, units = "in", res = 600)
 cowplot::plot_grid(
     AllDigs %>% 
         mutate(is0.1 = factor(ifelse(Digit == 0.1, 0.1, "Other"), 
@@ -195,7 +195,7 @@ tiff(filename = "Paper/Figures/Fig3.tif", width = 5.2, height = 3, units = "in",
 gg_ltg
 dev.off()
 
-pdf(file = "Paper/Figures/gammaltg.pdf", width = 5.2, height = 3)
+pdf(file = "Paper/Joint_Count_Files/gammaltg-1.pdf", width = 5.2, height = 3)
 gg_ltg
 dev.off()
 
@@ -235,7 +235,7 @@ tiff(filename = "Paper/Figures/Fig4.tif", width = 5.2, height = 3, units = "in",
 gg_per
 dev.off()
 
-pdf(file = "Paper/Figures/gammaper.pdf", width = 5.2, height = 3)
+pdf(file = "Paper/Joint_Count_Files/gammaper-1.pdf", width = 5.2, height = 3)
 gg_per
 dev.off()
 
