@@ -7,6 +7,7 @@ bc3 <- readRDS(here("Data/Modified", "bc3.rds"))
 
 library(ggmap)
 library(cowplot)
+library(patchwork)
 library(tidyr)
 library(stringr)
 
@@ -61,33 +62,28 @@ summaries <- bc3 %>%
     summarise(count = n(), sizes = sum(FinalControlSize, na.rm = TRUE),
         msizes = mean(FinalControlSize, na.rm = TRUE))
 
-freqsev <- plot_grid(
-    ggplot(summaries, aes(x = FireYear, y = count, fill = factor(FireCentre2))) + 
-        geom_col() +
-        scale_fill_brewer(type = "qual", palette = "Dark2") + 
-        theme(legend.position = "none") +
-        labs(x = "Year", y = "Count", title = "Frequency") + 
-        scale_x_continuous(breaks = seq(1945, 2015, 5)) +
-        fivepointtwo(),
-    ggplot(summaries, aes(x = FireYear, y = sizes, fill = factor(FireCentre2))) + 
-        geom_col(na.rm = TRUE) +
-        scale_fill_brewer(type = "qual", palette = "Dark2") + 
-        theme(legend.position = "none") +
-        labs(title = "Size, in Hectares (log 10 scale)", x = "Year", y = "Total Area Burned") + 
-        scale_x_continuous(breaks = seq(1945, 2015, 5)) +
-        scale_y_log10() +
-        fivepointtwo(),
-    ncol = 1
-)  
-
-gg_1 <- plot_grid(freqsev, nrow = 1, rel_widths = c(1,1.75))
+gg_counts <- ggplot(summaries, aes(x = FireYear, y = count, fill = factor(FireCentre2))) + 
+    geom_col() +
+    scale_fill_brewer(type = "qual", palette = "Dark2") + 
+    theme(legend.position = "right") +
+    labs(x = "Year", y = "Count", title = "Frequency", fill = "Fire Zone") + 
+    scale_x_continuous(breaks = seq(1945, 2015, 5)) +
+    fivepointtwo()
+gg_sizes <- ggplot(summaries, aes(x = FireYear, y = sizes, fill = factor(FireCentre2))) + 
+    geom_col(na.rm = TRUE) +
+    scale_fill_brewer(type = "qual", palette = "Dark2") + 
+    theme(legend.position = "right") +
+    labs(title = "Size, in Hectares (log 10 scale)", x = "Year", y = "Total Area Burned", fill = "Fire Zone") + 
+    scale_x_continuous(breaks = seq(1945, 2015, 5)) +
+    scale_y_log10() +
+    fivepointtwo()
 
 tiff(filename = "Paper/Figures/Fig1.tif", width = 5.2, height = 3, units = "in", res = 600)
-freqsev + theme_bw()
+gg_counts / gg_sizes + plot_layout(guides = "collect")
 dev.off()
 
 pdf(file = "Paper/Joint_Count_Files/firezones-1.pdf", width = 5.2, height = 3)
-freqsev + theme_bw()
+gg_counts / gg_sizes + plot_layout(guides = "collect")
 dev.off()
 
 
